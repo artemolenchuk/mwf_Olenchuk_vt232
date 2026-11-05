@@ -1,6 +1,5 @@
 <?php
 
-
 namespace App\Controller;
 
 use App\Entity\Car;
@@ -17,9 +16,34 @@ use Symfony\Component\Routing\Annotation\Route;
 class RentalController extends AbstractController
 {
     #[Route('', methods: ['GET'])]
-    public function index(EntityManagerInterface $em): JsonResponse
+    public function index(Request $request, EntityManagerInterface $em): JsonResponse
     {
-        $rentals = $em->getRepository(Rental::class)->findAll();
+        $repository = $em->getRepository(Rental::class);
+        $criteria = [];
+
+        if ($request->query->has('id')) {
+            $criteria['id'] = $request->query->get('id');
+        }
+        if ($request->query->has('car_id')) {
+            $criteria['car'] = $request->query->get('car_id');
+        }
+        if ($request->query->has('client_id')) {
+            $criteria['client'] = $request->query->get('client_id');
+        }
+        if ($request->query->has('total_price')) {
+            $criteria['total_price'] = $request->query->get('total_price');
+        }
+        if ($request->query->has('status')) {
+            $criteria['status'] = $request->query->get('status');
+        }
+
+        $page = max(1, (int) $request->query->get('page', 1));
+        $itemsPerPage = max(1, (int) $request->query->get('itemsPerPage', $request->query->get('per_page', 10)));
+        $offset = ($page - 1) * $itemsPerPage;
+
+        $totalItems = $repository->count($criteria);
+        $rentals = $repository->findBy($criteria, null, $itemsPerPage, $offset);
+
         $data = array_map(fn($r) => [
             'id' => $r->getId(),
             'car_id' => $r->getCar()?->getId(),
@@ -29,7 +53,14 @@ class RentalController extends AbstractController
             'total_price' => $r->getTotalPrice(),
             'status' => $r->getStatus(),
         ], $rentals);
-        return $this->json($data, Response::HTTP_OK);
+
+        return $this->json([
+            'data' => $data,
+            'total' => $totalItems,
+            'page' => $page,
+            'itemsPerPage' => $itemsPerPage,
+            'last_page' => (int) ceil($totalItems / $itemsPerPage)
+        ], Response::HTTP_OK);
     }
 
     #[Route('', methods: ['POST'])]

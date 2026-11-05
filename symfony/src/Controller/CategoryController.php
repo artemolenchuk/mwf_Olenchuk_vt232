@@ -1,6 +1,5 @@
 <?php
 
-
 namespace App\Controller;
 
 use App\Entity\Category;
@@ -15,11 +14,34 @@ use Symfony\Component\Routing\Annotation\Route;
 class CategoryController extends AbstractController
 {
     #[Route('', methods: ['GET'])]
-    public function index(EntityManagerInterface $em): JsonResponse
+    public function index(Request $request, EntityManagerInterface $em): JsonResponse
     {
-        $categories = $em->getRepository(Category::class)->findAll();
+        $repository = $em->getRepository(Category::class);
+        $criteria = [];
+
+        if ($request->query->has('id')) {
+            $criteria['id'] = $request->query->get('id');
+        }
+        if ($request->query->has('name')) {
+            $criteria['name'] = $request->query->get('name');
+        }
+
+        $page = max(1, (int) $request->query->get('page', 1));
+        $itemsPerPage = max(1, (int) $request->query->get('itemsPerPage', $request->query->get('per_page', 10)));
+        $offset = ($page - 1) * $itemsPerPage;
+
+        $totalItems = $repository->count($criteria);
+        $categories = $repository->findBy($criteria, null, $itemsPerPage, $offset);
+
         $data = array_map(fn($c) => ['id' => $c->getId(), 'name' => $c->getName()], $categories);
-        return $this->json($data, Response::HTTP_OK);
+
+        return $this->json([
+            'data' => $data,
+            'total' => $totalItems,
+            'page' => $page,
+            'itemsPerPage' => $itemsPerPage,
+            'last_page' => (int) ceil($totalItems / $itemsPerPage)
+        ], Response::HTTP_OK);
     }
 
     #[Route('/{id}', methods: ['GET'])]

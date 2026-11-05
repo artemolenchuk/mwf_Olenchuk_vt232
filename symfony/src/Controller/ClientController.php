@@ -1,6 +1,5 @@
 <?php
 
-
 namespace App\Controller;
 
 use App\Entity\Client;
@@ -15,16 +14,45 @@ use Symfony\Component\Routing\Annotation\Route;
 class ClientController extends AbstractController
 {
     #[Route('', methods: ['GET'])]
-    public function index(EntityManagerInterface $em): JsonResponse
+    public function index(Request $request, EntityManagerInterface $em): JsonResponse
     {
-        $clients = $em->getRepository(Client::class)->findAll();
+        $repository = $em->getRepository(Client::class);
+        $criteria = [];
+
+        if ($request->query->has('id')) {
+            $criteria['id'] = $request->query->get('id');
+        }
+        if ($request->query->has('full_name')) {
+            $criteria['fullName'] = $request->query->get('full_name');
+        }
+        if ($request->query->has('phone')) {
+            $criteria['phone'] = $request->query->get('phone');
+        }
+        if ($request->query->has('driver_license')) {
+            $criteria['driverLicense'] = $request->query->get('driver_license');
+        }
+
+        $page = max(1, (int) $request->query->get('page', 1));
+        $itemsPerPage = max(1, (int) $request->query->get('itemsPerPage', $request->query->get('per_page', 10)));
+        $offset = ($page - 1) * $itemsPerPage;
+
+        $totalItems = $repository->count($criteria);
+        $clients = $repository->findBy($criteria, null, $itemsPerPage, $offset);
+
         $data = array_map(fn($c) => [
             'id' => $c->getId(),
             'full_name' => $c->getFullName(),
             'phone' => $c->getPhone(),
             'driver_license' => $c->getDriverLicense(),
         ], $clients);
-        return $this->json($data, Response::HTTP_OK);
+
+        return $this->json([
+            'data' => $data,
+            'total' => $totalItems,
+            'page' => $page,
+            'itemsPerPage' => $itemsPerPage,
+            'last_page' => (int) ceil($totalItems / $itemsPerPage)
+        ], Response::HTTP_OK);
     }
 
     #[Route('', methods: ['POST'])]

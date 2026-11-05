@@ -8,7 +8,30 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PaymentController extends Controller
 {
-    public function index() { return response()->json(Payment::with('rental')->get(), Response::HTTP_OK); }
+    public function index(Request $request)
+    {
+        $query = Payment::with('rental');
+
+        if ($request->filled('id')) {
+            $query->where('id', $request->input('id'));
+        }
+        if ($request->filled('rental_id')) {
+            $query->where('rental_id', $request->input('rental_id'));
+        }
+        if ($request->filled('amount')) {
+            $query->where('amount', $request->input('amount'));
+        }
+        if ($request->filled('payment_date')) {
+            $query->whereDate('payment_date', $request->input('payment_date'));
+        }
+        if ($request->filled('payment_method')) {
+            $query->where('payment_method', $request->input('payment_method'));
+        }
+
+        $perPage = $request->input('itemsPerPage', $request->input('per_page', 10));
+
+        return response()->json($query->paginate((int)$perPage), Response::HTTP_OK);
+    }
 
     public function show($id)
     {

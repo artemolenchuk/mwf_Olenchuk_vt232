@@ -8,7 +8,27 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ClientController extends Controller
 {
-    public function index() { return response()->json(Client::all(), Response::HTTP_OK); }
+    public function index(Request $request)
+    {
+        $query = Client::query();
+
+        if ($request->filled('id')) {
+            $query->where('id', $request->input('id'));
+        }
+        if ($request->filled('full_name')) {
+            $query->where('full_name', 'like', '%' . $request->input('full_name') . '%');
+        }
+        if ($request->filled('phone')) {
+            $query->where('phone', 'like', '%' . $request->input('phone') . '%');
+        }
+        if ($request->filled('driver_license')) {
+            $query->where('driver_license', $request->input('driver_license'));
+        }
+
+        $perPage = $request->input('itemsPerPage', $request->input('per_page', 10));
+
+        return response()->json($query->paginate((int)$perPage), Response::HTTP_OK);
+    }
 
     public function show($id)
     {

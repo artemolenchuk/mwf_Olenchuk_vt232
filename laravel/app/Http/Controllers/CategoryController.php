@@ -8,7 +8,21 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CategoryController extends Controller
 {
-    public function index() { return response()->json(Category::with('cars')->get(), Response::HTTP_OK); }
+    public function index(Request $request)
+    {
+        $query = Category::with('cars');
+
+        if ($request->filled('id')) {
+            $query->where('id', $request->input('id'));
+        }
+        if ($request->filled('name')) {
+            $query->where('name', 'like', '%' . $request->input('name') . '%');
+        }
+
+        $perPage = $request->input('itemsPerPage', $request->input('per_page', 10));
+
+        return response()->json($query->paginate((int)$perPage), Response::HTTP_OK);
+    }
 
     public function show($id)
     {

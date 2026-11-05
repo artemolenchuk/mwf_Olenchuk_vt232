@@ -8,7 +8,36 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RentalController extends Controller
 {
-    public function index() { return response()->json(Rental::with(['car', 'client', 'payments'])->get(), Response::HTTP_OK); }
+    public function index(Request $request)
+    {
+        $query = Rental::with(['car', 'client', 'payments']);
+
+        if ($request->filled('id')) {
+            $query->where('id', $request->input('id'));
+        }
+        if ($request->filled('car_id')) {
+            $query->where('car_id', $request->input('car_id'));
+        }
+        if ($request->filled('client_id')) {
+            $query->where('client_id', $request->input('client_id'));
+        }
+        if ($request->filled('start_date')) {
+            $query->whereDate('start_date', $request->input('start_date'));
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('end_date', $request->input('end_date'));
+        }
+        if ($request->filled('total_price')) {
+            $query->where('total_price', $request->input('total_price'));
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        $perPage = $request->input('itemsPerPage', $request->input('per_page', 10));
+
+        return response()->json($query->paginate((int)$perPage), Response::HTTP_OK);
+    }
 
     public function show($id)
     {
